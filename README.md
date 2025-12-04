@@ -1,1 +1,1 @@
-# Aivle_4th_MiniProject_Frontend
+# 에이블 8기 4차 미니프로젝트 프론트엔드 입니다.
