@@ -19,7 +19,7 @@ const MOCK_BOOKS = [
     {
         bookId: "mock-1",
         title: "프론트엔드 실전 핸드북",
-        author: "김코드",
+        authorName: "김코드",
         category: "프로그래밍",
         coverUrl:
             "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=500&q=80",
@@ -27,7 +27,7 @@ const MOCK_BOOKS = [
     {
         bookId: "mock-2",
         title: "데이터 과학으로 하는 의사결정",
-        author: "이분석",
+        authorName: "이분석",
         category: "데이터",
         coverUrl:
             "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=500&q=80",
@@ -35,7 +35,7 @@ const MOCK_BOOKS = [
     {
         bookId: "mock-3",
         title: "클린 코드 여정",
-        author: "박정리",
+        authorName: "박정리",
         category: "소프트웨어 공학",
         coverUrl:
             "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=500&q=80",
@@ -43,7 +43,7 @@ const MOCK_BOOKS = [
     {
         bookId: "mock-4",
         title: "AI Product Design",
-        author: "Alice Kim",
+        authorName: "Alice Kim",
         category: "UX/UI",
         coverUrl:
             "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=500&q=80",
@@ -51,7 +51,7 @@ const MOCK_BOOKS = [
     {
         bookId: "mock-5",
         title: "서버리스 첫걸음",
-        author: "최백엔드",
+        authorName: "최백엔드",
         category: "클라우드",
         coverUrl:
             "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=500&q=80",
@@ -99,10 +99,11 @@ function BookListPage() {
 
     const filteredBooks = books.filter((book) => {
         const term = searchTerm.toLowerCase();
+        const authorText = (book.authorName || book.author || "").toLowerCase();
         const matchesSearch =
             !term ||
             book.title?.toLowerCase().includes(term) ||
-            book.author?.toLowerCase().includes(term) ||
+            authorText.includes(term) ||
             book.category?.toLowerCase().includes(term);
 
         const matchesCategory = selectedCategory === "전체" || (book.category || "카테고리 미정") === selectedCategory;
@@ -225,7 +226,7 @@ function BookListPage() {
                                     {book.title}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    {book.author}
+                                    {book.authorName || book.author}
                                 </Typography>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <Chip
