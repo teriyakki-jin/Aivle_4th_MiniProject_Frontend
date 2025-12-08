@@ -24,7 +24,11 @@ export default function Header() {
                     <Button color="inherit" onClick={() => navigate('/books')}>
                         도서 목록
                     </Button>
-                    <Button variant="contained" sx={{ color: '#1e88e5', backgroundColor: '#fff' }}>
+                    <Button
+                        variant="contained"
+                        sx={{ color: '#1e88e5', backgroundColor: '#fff' }}
+                        onClick={() => navigate('/login')}  // 이 줄 추가
+                    >
                         Login
                     </Button>
                 </Stack>
