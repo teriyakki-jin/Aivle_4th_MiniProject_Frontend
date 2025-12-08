@@ -1,6 +1,4 @@
 // src/pages/BookFormPage.jsx
-
-// src/pages/BookFormPage.jsx
 import {
     Container,
     TextField,
@@ -19,7 +17,7 @@ import {
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react"; // useEffect는 더 이상 사용하지 않으므로 제거
 import api from "../app/axios";
 
 export default function BookFormPage() {
@@ -49,23 +47,27 @@ export default function BookFormPage() {
     // 프롬프트 자동 생성: 폼 메타데이터 기반
     function buildCoverPrompt({ title, author, category, description }) {
         return `
-다음 도서 정보를 반영한 한국어 표지 이미지를 생성해줘.
+다음 도서 내용을 주제로 한 [**텍스트가 없는** 순수 예술 일러스트레이션]을 생성해줘.
 - 제목: ${title || "(미입력)"}
 - 저자: ${author || "(미입력)"}
 - 카테고리: ${category || "(미입력)"}
 - 소개/특징: ${description || "(없음)"}
 
 요구사항:
-- 텍스트는 최소화(가능하면 텍스트 없이 상징/개념적 비주얼)
-- 과장된 광고 톤 금지, 정보 중심, 정제된 스타일
+1. 이미지 안에 글자, 알파벳, 숫자 절대 금지 (No Text, No Typography)
+2. 책 모양(3D 목업)이 아니라 평면 그림(2D Art)으로 그릴 것
+3. ${category} 장르에 어울리는 예술적 화풍
 - 인상적이고 고품질의 일러스트/디지털 아트
 - 해상도: ${coverSize}
 `.trim();
     }
 
-    // ===== useEffect: 프롬프트 변화/토글에 따라 자동 표지 생성 =====
-    useEffect(() => {
-        if (!autoGenerateCover) return;
+    ////////////////////////////////////////////////////////////////////////////////
+    // [수정됨] useEffect 제거 -> 버튼 클릭 시 실행될 함수(handleGenerateImage) 추가
+    // 기존에는 useEffect가 상태 변화를 감지해 자동 실행했지만, 이제는 이 함수를 호출해야 실행됩니다.
+    ////////////////////////////////////////////////////////////////////////////////
+    const handleGenerateImage = async () => {
+        // 1. 기본 유효성 검사
         if (!userApiKey?.trim()) {
             setCoverError(new Error("OpenAI API 키를 입력하세요."));
             return;
@@ -75,55 +77,67 @@ export default function BookFormPage() {
             return;
         }
 
-        // 디바운스 & 취소
-        const controller = new AbortController();
-        const timer = setTimeout(async () => {
-            try {
-                setCoverLoading(true);
-                setCoverError(null);
-                setCoverUrl("");
+        try {
+            setCoverLoading(true);
+            setCoverError(null);
+            setCoverUrl(""); // 기존 이미지가 있다면 초기화
 
-                // 프롬프트가 비어 있으면 자동 생성
-                const prompt = coverPrompt?.trim() ? coverPrompt : buildCoverPrompt(form);
-
-                // React → OpenAI: 이미지 생성 요청
-                const res = await fetch("https://api.openai.com/v1/images/generations", {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${userApiKey}`, // ⚠️ 브라우저 노출
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        model: "dall-e-3",
-                        prompt,
-                        size: coverSize, // 예: "1024x1024"
-                    }),
-                    signal: controller.signal,
-                });
-
-                if (!res.ok) {
-                    const text = await res.text();
-                    throw new Error(`OpenAI HTTP ${res.status}: ${text}`);
-                }
-
-                const json = await res.json();
-                const url = json?.data?.[0]?.url ?? "";
-                if (!url) throw new Error("OpenAI 응답에 image URL(data[0].url)이 없습니다.");
-
-                // OpenAI → React: URL 수신
-                setCoverUrl(url);
-            } catch (e) {
-                if (e.name !== "CanceledError") setCoverError(e);
-            } finally {
-                setCoverLoading(false);
+            // 2. 사용할 프롬프트 결정
+            // 사용자가 입력한 프롬프트가 있으면 그것을 쓰고, 없으면 자동 생성 함수 호출
+            let promptToSend = coverPrompt?.trim();
+            if (!promptToSend) {
+                promptToSend = buildCoverPrompt(form);
+                setCoverPrompt(promptToSend); // 화면의 텍스트 필드에도 반영
             }
-        }, 600);
 
-        return () => {
-            clearTimeout(timer);
-            controller.abort();
-        };
-    }, [autoGenerateCover, userApiKey, coverPrompt, coverSize, form.title, form.author, form.category, form.description]);
+            // 3. OpenAI API 호출
+            const res = await fetch("https://api.openai.com/v1/images/generations", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${userApiKey}`, // ⚠️ 브라우저 노출
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    model: "dall-e-3",
+                    prompt: promptToSend,
+                    size: coverSize, // 예: "1024x1024"
+                }),
+            });
+
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(`OpenAI HTTP ${res.status}: ${text}`);
+            }
+
+            const json = await res.json();
+            const url = json?.data?.[0]?.url ?? "";
+            if (!url) throw new Error("OpenAI 응답에 image URL(data[0].url)이 없습니다.");
+
+            // OpenAI → React: URL 수신
+            setCoverUrl(url);
+
+        } catch (e) {
+            console.error(e);
+            setCoverError(e);
+        } finally {
+            setCoverLoading(false);
+        }
+    };
+    ////////////////////////////////////////////////////////////////////////////////
+
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // [제거됨] 기존 useEffect 삭제 (주석 처리함)
+    // 버튼 클릭 방식으로 변경했으므로 더 이상 자동 감지 로직이 필요 없습니다.
+    ////////////////////////////////////////////////////////////////////////////////
+    /*
+    useEffect(() => {
+        if (!autoGenerateCover) return;
+        // ... (기존 로직 생략) ...
+    }, [autoGenerateCover, userApiKey, coverPrompt, coverSize, form.title, ...]);
+    */
+    ////////////////////////////////////////////////////////////////////////////////
+
 
     // ===== 제출: 도서 생성 → 표지 URL 저장 (React → Spring Boot) =====
     const handleSubmit = async () => {
@@ -307,16 +321,15 @@ export default function BookFormPage() {
                                     helperText='예: "1024x1024", "512x512"'
                                     sx={{ width: { xs: "100%", sm: 220 } }}
                                 />
+
+                                {/* //////////////////////////////////////////////////////////////////////////////// */}
+                                {/* [수정됨] onClick 핸들러 교체 */}
+                                {/* 기존: 단순 토글 및 상태 변경 -> 수정: handleGenerateImage 함수 직접 호출 */}
+                                {/* //////////////////////////////////////////////////////////////////////////////// */}
                                 <Button
                                     variant="contained"
                                     color="primary"
-                                    onClick={() => {
-                                        // 즉시 1회 트리거: 토글 켜져 있으면 useEffect가 자동 호출됨
-                                        // 토글이 꺼져 있을 경우 임시로 켭니다.
-                                        if (!autoGenerateCover) setAutoGenerateCover(true);
-                                        // coverPrompt가 비어있으면 자동 생성
-                                        if (!coverPrompt?.trim()) setCoverPrompt(buildCoverPrompt(form));
-                                    }}
+                                    onClick={handleGenerateImage}
                                     disabled={coverLoading}
                                 >
                                     {coverLoading ? "이미지 생성 중..." : "이미지 생성"}
@@ -338,7 +351,7 @@ export default function BookFormPage() {
                                         style={{ width: "100%", borderRadius: 12, border: "1px solid #e5e7eb" }}
                                     />
                                     {/*<Typography variant="body2" sx={{ wordBreak: "break-all" }}>*/}
-                                    {/*    imageUrl: {coverUrl}*/}
+                                    {/* imageUrl: {coverUrl}*/}
                                     {/*</Typography>*/}
                                     <Alert severity="success">이미지 URL 생성 완료. 등록 시 서버에 저장됩니다.</Alert>
                                 </Stack>
@@ -372,5 +385,3 @@ export default function BookFormPage() {
         </Container>
     );
 }
-
-
