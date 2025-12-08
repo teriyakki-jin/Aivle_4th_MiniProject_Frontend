@@ -63,7 +63,7 @@ export default function BookDetailPage() {
                             {book.title}
                         </Typography>
                         <Typography variant="subtitle1" color="text.secondary">
-                            {book.author}
+                            {book.authorName || book.author}
                         </Typography>
                     </Stack>
 

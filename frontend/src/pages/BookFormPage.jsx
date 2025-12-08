@@ -23,7 +23,7 @@ export default function BookFormPage() {
 
     const [form, setForm] = useState({
         title: "",
-        author: "",
+        authorName: "",
         category: "",
         description: "",
     });
@@ -36,7 +36,7 @@ export default function BookFormPage() {
     };
 
     const handleSubmit = async () => {
-        if (!form.title || !form.author) {
+        if (!form.title || !form.authorName) {
             alert("제목과 저자는 필수입니다.");
             return;
         }
@@ -144,11 +144,11 @@ export default function BookFormPage() {
                     />
                     <TextField
                         label="저자"
-                        name="author"
+                        name="authorName"
                         variant="outlined"
                         fullWidth
                         required
-                        value={form.author}
+                        value={form.authorName}
                         onChange={handleChange}
                         helperText="필수 입력. 여러 명일 경우 쉼표로 구분하거나 주요 저자만 적어도 됩니다."
                     />
