@@ -9,7 +9,7 @@ const mockBooksData = [
         title: "작가의 산책",
         content: "이 책은 작가가 숲을 산책하며 느낀 감정을 담은 에세이입니다...",
         createdAt: "2025-12-04",
-        coverUrl: "https://via.placeholder.com/300", // 이미지를 좀 크게 봅니다
+        coverUrl: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=500&auto=format&fit=crop&q=60", // 이미지를 좀 크게 봅니다
     },
     {
         id: 2,

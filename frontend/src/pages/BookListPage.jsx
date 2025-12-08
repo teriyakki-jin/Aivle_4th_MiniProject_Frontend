@@ -7,7 +7,7 @@ const mockBooks = [
         id: 1,
         title: "작가의 산책",
         createdAt: "2025-12-04",
-        coverUrl: "https://via.placeholder.com/150",
+        coverUrl: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=500&auto=format&fit=crop&q=60",
     },
     {
         id: 2,
