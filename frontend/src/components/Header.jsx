@@ -1,8 +1,32 @@
 import { AppBar, Toolbar, Typography, Button, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 
 export default function Header() {
     const navigate = useNavigate();
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [userEmail, setUserEmail] = useState('');
+
+    // 로그인 상태 확인
+    useEffect(() => {
+        const userId = localStorage.getItem('userId');
+        const email = localStorage.getItem('userEmail');
+
+        if (userId) {
+            setIsLoggedIn(true);
+            setUserEmail(email || '');
+        }
+    }, []);
+
+    // 로그아웃 처리
+    const handleLogout = () => {
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userEmail');
+        setIsLoggedIn(false);
+        setUserEmail('');
+        navigate('/');
+    };
 
     return (
         <AppBar
@@ -19,18 +43,35 @@ export default function Header() {
                 <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
                     도서 관리 시스템
                 </Typography>
-                <Stack direction="row" spacing={1.5}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
                     <Button color="inherit" onClick={() => navigate('/')}>홈</Button>
                     <Button color="inherit" onClick={() => navigate('/books')}>
                         도서 목록
                     </Button>
-                    <Button
-                        variant="contained"
-                        sx={{ color: '#1e88e5', backgroundColor: '#fff' }}
-                        onClick={() => navigate('/login')}  // 이 줄 추가
-                    >
-                        Login
-                    </Button>
+
+                    {isLoggedIn ? (
+                        <>
+                            <Typography variant="body2" sx={{ px: 1 }}>
+                                {userEmail}
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                sx={{ color: '#1e88e5', backgroundColor: '#fff' }}
+                                onClick={handleLogout}
+                                startIcon={<LogoutOutlinedIcon />}
+                            >
+                                Logout
+                            </Button>
+                        </>
+                    ) : (
+                        <Button
+                            variant="contained"
+                            sx={{ color: '#1e88e5', backgroundColor: '#fff' }}
+                            onClick={() => navigate('/login')}
+                        >
+                            Login
+                        </Button>
+                    )}
                 </Stack>
             </Toolbar>
         </AppBar>
