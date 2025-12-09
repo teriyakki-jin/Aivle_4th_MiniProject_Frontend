@@ -1,5 +1,5 @@
 // src/pages/BookListPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Card,
@@ -11,7 +11,14 @@ import {
     Stack,
     Chip,
     Alert,
+    TextField,
+    InputAdornment,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
 } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 import api from "../app/axios";
 
 const MOCK_BOOKS = [
@@ -64,11 +71,28 @@ function BookListPage() {
     const [loading, setLoading] = useState(true); // 로딩 상태
     const [error, setError] = useState(""); // 에러 메시지
     const [usingMock, setUsingMock] = useState(false);
+    const [searchKeyword, setSearchKeyword] = useState("");
+    const [categoryKeyword, setCategoryKeyword] = useState("전체");
 
-    async function fetchBooks() {
+    const categoryOptions = useMemo(
+        () => [
+            "전체",
+            "프로그래밍",
+            "데이터",
+            "소프트웨어 공학",
+            "UX/UI",
+            "클라우드",
+        ],
+        []
+    );
+
+    async function fetchBooks(keyword = "", categoryFilter = "") {
         try {
             // 검색 조건 없으면 그냥 전체 조회
-            const res = await api.get("/books");
+            const params = {};
+            if (keyword) params.keyword = keyword;
+            if (categoryFilter) params.category = categoryFilter;
+            const res = await api.get("/books", { params });
 
             // API 스펙: { status, message, data: [...] }
             setBooks(res.data.data || []);
@@ -78,15 +102,39 @@ function BookListPage() {
             // 404, 500 경우에 message 내려줄 거라 그거 사용
             const msg = e.response?.data?.message || "도서 목록을 불러오지 못했습니다.";
             setError(msg);
-            setBooks(MOCK_BOOKS);
+            const keywordLower = keyword.toLowerCase();
+            const categoryLower = categoryFilter.toLowerCase();
+            const filteredMock = MOCK_BOOKS.filter((book) => {
+                const matchesKeyword = keyword
+                    ? book.title?.toLowerCase().includes(keywordLower) ||
+                      book.author?.toLowerCase().includes(keywordLower)
+                    : true;
+                const matchesCategory = categoryFilter
+                    ? book.category?.toLowerCase().includes(categoryLower)
+                    : true;
+                return matchesKeyword && matchesCategory;
+            });
+            setBooks(filteredMock);
             setUsingMock(true);
         } finally {
             setLoading(false);
         }
     }
 
+    const handleSearch = () => {
+        setLoading(true);
+        fetchBooks(searchKeyword.trim(), categoryKeyword === "전체" ? "" : categoryKeyword.trim());
+    };
+
+    const handleReset = () => {
+        setSearchKeyword("");
+        setCategoryKeyword("전체");
+        setLoading(true);
+        fetchBooks("");
+    };
+
     useEffect(() => {
-        fetchBooks();
+        fetchBooks("", "");
     }, []);
 
     if (loading) return <div style={{ padding: 20 }}>불러오는 중...</div>;
@@ -111,6 +159,54 @@ function BookListPage() {
                 </Button>
             </Stack>
 
+            <Stack
+                direction={{ xs: "column", md: "row" }}
+                spacing={1.5}
+                mb={2}
+                alignItems="stretch"
+            >
+                <TextField
+                    fullWidth
+                    label="도서 검색"
+                    placeholder="제목 또는 저자를 입력하세요"
+                    value={searchKeyword}
+                    onChange={(e) => setSearchKeyword(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSearch();
+                    }}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon color="action" />
+                            </InputAdornment>
+                        ),
+                    }}
+                />
+                <FormControl sx={{ minWidth: 180 }}>
+                    <InputLabel id="book-category-label">카테고리</InputLabel>
+                    <Select
+                        labelId="book-category-label"
+                        label="카테고리"
+                        value={categoryKeyword}
+                        onChange={(e) => setCategoryKeyword(e.target.value)}
+                    >
+                        {categoryOptions.map((option) => (
+                            <MenuItem key={option} value={option}>
+                                {option}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+                <Stack direction="row" spacing={1}>
+                    <Button variant="contained" onClick={handleSearch} sx={{ minWidth: 96 }}>
+                        검색
+                    </Button>
+                    <Button variant="text" color="inherit" onClick={handleReset} sx={{ minWidth: 96 }}>
+                        초기화
+                    </Button>
+                </Stack>
+            </Stack>
+
             {usingMock && (
                 <Alert severity="info" sx={{ mb: 2, borderRadius: 3 }}>
                     서버 연결이 어려워 준비된 샘플 데이터를 보여주고 있어요. 네트워크가 복구되면
@@ -121,12 +217,20 @@ function BookListPage() {
                 <Alert
                     severity="error"
                     sx={{ mb: 2, borderRadius: 3 }}
-                    action=
-                        {
-                            <Button color="inherit" size="small" onClick={fetchBooks}>
-                                재시도
-                            </Button>
-                        }
+                    action={
+                        <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() =>
+                                fetchBooks(
+                                    searchKeyword.trim(),
+                                    categoryKeyword === "전체" ? "" : categoryKeyword.trim()
+                                )
+                            }
+                        >
+                            재시도
+                        </Button>
+                    }
                 >
                     {error}
                 </Alert>
