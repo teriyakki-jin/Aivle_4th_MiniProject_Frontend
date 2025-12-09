@@ -1,5 +1,5 @@
 // src/pages/BookListPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Card,
@@ -11,14 +11,17 @@ import {
     Stack,
     Chip,
     Alert,
+    TextField,
+    IconButton,
 } from "@mui/material";
+import ClearIcon from "@mui/icons-material/Clear";
 import api from "../app/axios";
 
 const MOCK_BOOKS = [
     {
         bookId: "mock-1",
         title: "프론트엔드 실전 핸드북",
-        author: "김코드",
+        authorName: "김코드",
         category: "프로그래밍",
         coverUrl:
             "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=500&q=80",
@@ -26,7 +29,7 @@ const MOCK_BOOKS = [
     {
         bookId: "mock-2",
         title: "데이터 과학으로 하는 의사결정",
-        author: "이분석",
+        authorName: "이분석",
         category: "데이터",
         coverUrl:
             "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=500&q=80",
@@ -34,7 +37,7 @@ const MOCK_BOOKS = [
     {
         bookId: "mock-3",
         title: "클린 코드 여정",
-        author: "박정리",
+        authorName: "박정리",
         category: "소프트웨어 공학",
         coverUrl:
             "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=500&q=80",
@@ -42,7 +45,7 @@ const MOCK_BOOKS = [
     {
         bookId: "mock-4",
         title: "AI Product Design",
-        author: "Alice Kim",
+        authorName: "Alice Kim",
         category: "UX/UI",
         coverUrl:
             "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=500&q=80",
@@ -50,7 +53,7 @@ const MOCK_BOOKS = [
     {
         bookId: "mock-5",
         title: "서버리스 첫걸음",
-        author: "최백엔드",
+        authorName: "최백엔드",
         category: "클라우드",
         coverUrl:
             "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=500&q=80",
@@ -64,6 +67,8 @@ function BookListPage() {
     const [loading, setLoading] = useState(true); // 로딩 상태
     const [error, setError] = useState(""); // 에러 메시지
     const [usingMock, setUsingMock] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState("전체");
 
     async function fetchBooks() {
         try {
@@ -88,6 +93,29 @@ function BookListPage() {
     useEffect(() => {
         fetchBooks();
     }, []);
+
+    const categories = useMemo(() => {
+        const source = books.length ? books : MOCK_BOOKS;
+        const uniqueCategories = Array.from(new Set(source.map((book) => book.category || "카테고리 미정")));
+        return ["전체", ...uniqueCategories];
+    }, [books]);
+
+    const filteredBooks = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+
+        return books.filter((book) => {
+            const authorText = (book.authorName || book.author || "").toLowerCase();
+            const categoryText = (book.category || "카테고리 미정").toLowerCase();
+            const titleText = (book.title || "").toLowerCase();
+
+            const matchesSearch =
+                !term || titleText.includes(term) || authorText.includes(term) || categoryText.includes(term);
+
+            const matchesCategory = selectedCategory === "전체" || categoryText === selectedCategory.toLowerCase();
+
+            return matchesSearch && matchesCategory;
+        });
+    }, [books, searchTerm, selectedCategory]);
 
     if (loading) return <div style={{ padding: 20 }}>불러오는 중...</div>;
     return (
@@ -132,8 +160,41 @@ function BookListPage() {
                 </Alert>
             )}
 
+            <Stack spacing={2} mb={3} direction="column">
+                <TextField
+                    label="제목, 저자 또는 카테고리 검색"
+                    placeholder="예) 클린 코드, 김코드, 데이터"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    fullWidth
+                    InputProps={{
+                        endAdornment: searchTerm ? (
+                            <IconButton aria-label="검색어 지우기" onClick={() => setSearchTerm("")}> 
+                                <ClearIcon />
+                            </IconButton>
+                        ) : null,
+                    }}
+                />
+
+                <Stack direction="row" flexWrap="wrap" gap={1}>
+                    {categories.map((category) => {
+                        const selected = selectedCategory === category;
+                        return (
+                            <Chip
+                                key={category}
+                                label={category}
+                                color={selected ? "primary" : "default"}
+                                variant={selected ? "filled" : "outlined"}
+                                onClick={() => setSelectedCategory(category)}
+                                sx={{ borderRadius: 2 }}
+                            />
+                        );
+                    })}
+                </Stack>
+            </Stack>
+
             <Grid container spacing={2.5}>
-                {books.map((book) => (
+                {filteredBooks.map((book) => (
                     <Grid item xs={12} sm={6} md={4} key={book.bookId}>
                         <Card
                             onClick={() => navigate(`/books/${book.bookId}`)}
@@ -178,7 +239,7 @@ function BookListPage() {
                                     {book.title}
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                    {book.author}
+                                    {book.authorName || book.author}
                                 </Typography>
                                 <Stack direction="row" spacing={1} alignItems="center">
                                     <Chip
@@ -205,6 +266,22 @@ function BookListPage() {
                             }}
                         >
                             아직 등록된 도서가 없습니다. 첫 번째 도서를 등록해 보세요!
+                        </Box>
+                    </Grid>
+                )}
+                {books.length > 0 && filteredBooks.length === 0 && (
+                    <Grid item xs={12}>
+                        <Box
+                            sx={{
+                                p: 3,
+                                textAlign: "center",
+                                borderRadius: 3,
+                                border: "1px dashed #cbd5e1",
+                                color: "text.secondary",
+                                backgroundColor: "#f8fafc",
+                            }}
+                        >
+                            검색어나 카테고리에 맞는 도서가 없습니다. 다른 조건으로 시도해 보세요.
                         </Box>
                     </Grid>
                 )}
