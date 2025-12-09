@@ -24,7 +24,7 @@ export default function BookFormPage() {
     const navigate = useNavigate();
     const [form, setForm] = useState({
         title: "",
-        author: "",
+        authorName: "",
         category: "",
         description: "",
     });
@@ -45,11 +45,11 @@ export default function BookFormPage() {
     };
 
     // 프롬프트 자동 생성: 폼 메타데이터 기반
-    function buildCoverPrompt({ title, author, category, description }) {
+    function buildCoverPrompt({ title, authorName, category, description }) {
         return `
 다음 도서 정보를 반영한 한국어 표지 이미지를 생성해줘.
 - 제목: ${title || "(미입력)"}
-- 저자: ${author || "(미입력)"}
+- 저자: ${authorName || "(미입력)"}
 - 카테고리: ${category || "(미입력)"}
 - 소개/특징: ${description || "(없음)"}
 
@@ -71,7 +71,7 @@ export default function BookFormPage() {
             setCoverError(new Error("OpenAI API 키를 입력하세요."));
             return;
         }
-        if (!form.title?.trim() || !form.author?.trim()) {
+        if (!form.title?.trim() || !form.authorName?.trim()) {
             setCoverError(new Error("제목과 저자를 입력해야 표지를 생성할 수 있어요."));
             return;
         }
@@ -140,7 +140,7 @@ export default function BookFormPage() {
 
     // ===== 제출: 도서 생성 → 표지 URL 저장 (React → Spring Boot) =====
     const handleSubmit = async () => {
-        if (!form.title || !form.author) {
+        if (!form.title || !form.authorName) {
             alert("제목과 저자는 필수입니다.");
             return;
         }
@@ -248,11 +248,11 @@ export default function BookFormPage() {
                     />
                     <TextField
                         label="저자"
-                        name="author"
+                        name="authorName"
                         variant="outlined"
                         fullWidth
                         required
-                        value={form.author}
+                        value={form.authorName}
                         onChange={handleChange}
                         helperText="필수 입력. 여러 명일 경우 쉼표로 구분하거나 주요 저자만 적어도 됩니다."
                     />
