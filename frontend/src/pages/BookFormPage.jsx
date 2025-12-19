@@ -1,6 +1,4 @@
 // src/pages/BookFormPage.jsx
-
-// src/pages/BookFormPage.jsx
 import {
     Container,
     TextField,
@@ -17,6 +15,7 @@ import {
     FormControlLabel,
     Switch,
 } from "@mui/material";
+
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -26,7 +25,7 @@ export default function BookFormPage() {
     const navigate = useNavigate();
     const [form, setForm] = useState({
         title: "",
-        author: "",
+        authorName: "",
         category: "",
         description: "",
     });
@@ -47,20 +46,20 @@ export default function BookFormPage() {
     };
 
     // 프롬프트 자동 생성: 폼 메타데이터 기반
-    function buildCoverPrompt({ title, author, category, description }) {
+    function buildCoverPrompt({ title, authorName, category, description }) {
         return `
-다음 도서 정보를 반영한 한국어 표지 이미지를 생성해줘.
-- 제목: ${title || "(미입력)"}
-- 저자: ${author || "(미입력)"}
-- 카테고리: ${category || "(미입력)"}
-- 소개/특징: ${description || "(없음)"}
-
-요구사항:
-- 텍스트는 최소화(가능하면 텍스트 없이 상징/개념적 비주얼)
-- 과장된 광고 톤 금지, 정보 중심, 정제된 스타일
-- 인상적이고 고품질의 일러스트/디지털 아트
-- 해상도: ${coverSize}
-`.trim();
+        다음 도서 정보를 반영한 표지 이미지를 생성해줘.
+        - 제목: ${title || "(미입력)"}
+        - 저자: ${authorName || "(미입력)"}
+        - 카테고리: ${category || "(미입력)"}
+        - 소개/특징: ${description || "(없음)"}
+        
+        요구사항:
+        - 텍스트는 최소화(가능하면 텍스트 없이 상징/개념적 비주얼)
+        - 과장된 광고 톤 금지, 정보 중심, 정제된 스타일
+        - 인상적이고 고품질의 일러스트/디지털 아트
+        - 해상도: ${coverSize}
+        `.trim();
     }
 
     // ===== useEffect: 프롬프트 변화/토글에 따라 자동 표지 생성 =====
@@ -70,7 +69,7 @@ export default function BookFormPage() {
             setCoverError(new Error("OpenAI API 키를 입력하세요."));
             return;
         }
-        if (!form.title?.trim() || !form.author?.trim()) {
+        if (!form.title?.trim() || !form.authorName?.trim()) {
             setCoverError(new Error("제목과 저자를 입력해야 표지를 생성할 수 있어요."));
             return;
         }
@@ -123,46 +122,68 @@ export default function BookFormPage() {
             clearTimeout(timer);
             controller.abort();
         };
-    }, [autoGenerateCover, userApiKey, coverPrompt, coverSize, form.title, form.author, form.category, form.description]);
+    }, [autoGenerateCover, userApiKey, coverPrompt, coverSize, form.title, form.authorName, form.category, form.description]);
+
+
+    // ===== 제출: 도서 생성 → 표지 URL 저장 (React → Spring Boot) =====
+    function extractBookId(res) {
+        const id =
+            res?.data?.data?.bookId ??
+            res?.data?.data?.id ??
+            res?.data?.bookId ??
+            res?.data?.id;
+        return typeof id === "number" ? id : undefined;
+    }
 
     // ===== 제출: 도서 생성 → 표지 URL 저장 (React → Spring Boot) =====
     const handleSubmit = async () => {
-        if (!form.title || !form.author) {
+        if (!form.title || !form.authorName) {
             alert("제목과 저자는 필수입니다.");
             return;
         }
-
         try {
             setSubmitting(true);
-            const userId = localStorage.getItem("userId") || "TEMP_USER_ID"; // 로그인 연동 예정
+            const rawUserId = localStorage.getItem("userId");
+            const userId = rawUserId && /^[0-9a-fA-F-]+$/.test(rawUserId) ? rawUserId : undefined;
 
-            // 1) 도서 생성
-            const createRes = await api.post("/books", { userId, ...form });
-            const message = createRes.data?.message || "도서가 성공적으로 등록되었습니다.";
-            const created = createRes.data?.data || {};
-            // 응답에서 bookId 추출 (프로젝트 응답 규약에 맞춰 조정)
-            const bookId =
-                created.bookId ??
-                created.id ??
-                createRes.data?.bookId ??
-                createRes.data?.id;
+            const payload = {
+                title: form.title.trim(),
+                authorName: form.authorName.trim(),
+                author: form.authorName.trim(),           // 양쪽 키 지원
+                category: form.category?.trim() || null,
+                description: form.description?.trim() || null,
+                imageUrl: (coverUrl && coverUrl.trim()) ? coverUrl.trim() : "https://url.kr/etp2f7",
 
-            // 2) 표지 URL이 미리 생성되어 있다면 즉시 저장
-            if (bookId && coverUrl) {
+            // imageUrl: coverUrl || null,
+            };
+            if (userId) payload.userId = userId;
+
+            +   console.log("[POST /books] payload =", payload);
+            const createRes = await api.post("/books", payload);
+
+            const message = createRes?.data?.message || "도서가 성공적으로 등록되었습니다.";
+            const bookId = extractBookId(createRes);
+            if (!bookId) {
+                console.error("bookId 추출 실패. 전체 응답:", createRes?.data);
+                // alert("도서는 등록되었지만 응답에서 도서 ID를 확인하지 못했습니다.");
+                navigate("/books");
+                return;
+            }
+
+            if (coverUrl) {
                 try {
-                    await api.put(`/api/books/${bookId}/cover-url`, { coverUrl });
+                    await api.put(`/books/${bookId}/cover-url`, { coverUrl }); // baseURL 중복 방지
                 } catch (e) {
-                    // 표지 저장 실패는 도서 등록 성공을 가로막지 않음
-                    console.error("표지 URL 저장 실패:", e);
+                    console.error("표지 URL 저장 실패:", e?.response?.data || e);
                 }
             }
 
             alert(message);
-            // 등록 후 목록으로 이동 (또는 상세 페이지 이동을 원하면 아래 라인 사용)
-            // navigate(`/books/${bookId}`);
             navigate("/books");
         } catch (e) {
-            const msg = e.response?.data?.message || "도서 등록 중 오류가 발생했습니다.";
+            console.error("[POST /books] error =", e?.response?.data || e);
+            const msg =
+                e?.response?.data?.message || "도서 등록 중 오류가 발생했습니다.";
             alert(msg);
         } finally {
             setSubmitting(false);
@@ -235,11 +256,11 @@ export default function BookFormPage() {
                     />
                     <TextField
                         label="저자"
-                        name="author"
+                        name="authorName"   // ✅ 변경
                         variant="outlined"
                         fullWidth
                         required
-                        value={form.author}
+                        value={form.authorName} // ✅ 변경
                         onChange={handleChange}
                         helperText="필수 입력. 여러 명일 경우 쉼표로 구분하거나 주요 저자만 적어도 됩니다."
                     />
@@ -311,10 +332,11 @@ export default function BookFormPage() {
                                     variant="contained"
                                     color="primary"
                                     onClick={() => {
-                                        // 즉시 1회 트리거: 토글 켜져 있으면 useEffect가 자동 호출됨
-                                        // 토글이 꺼져 있을 경우 임시로 켭니다.
+                                        if (!form.title?.trim() || !form.authorName?.trim()) {
+                                            setCoverError(new Error("제목과 저자를 먼저 입력하세요."));
+                                            return;
+                                        }
                                         if (!autoGenerateCover) setAutoGenerateCover(true);
-                                        // coverPrompt가 비어있으면 자동 생성
                                         if (!coverPrompt?.trim()) setCoverPrompt(buildCoverPrompt(form));
                                     }}
                                     disabled={coverLoading}

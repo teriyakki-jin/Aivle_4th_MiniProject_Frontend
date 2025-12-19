@@ -3,15 +3,17 @@ import axios from 'axios';
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || 'http://18.140.234.181/api/v1', // 백앤드와 맞추기
     withCredentials: true, // 쿠키 기반 인증 사용 시
+    headers: { "Content-Type": "application/json" },
     timeout: 15000,
 });
 
 // 요청 인터셉터
 api.interceptors.request.use(
     (config) => {
-        // 예: 로컬 스토리지/메모리에서 토큰을 꺼내 헤더에 추가
-        const token = window.localStorage.getItem('accessToken');
-        if (token) config.headers.Authorization = `Bearer ${token}`;
+        const token = localStorage.getItem("accessToken"); // 실제 저장 키명에 맞추세요
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
         return config;
     },
     (error) => Promise.reject(error)
